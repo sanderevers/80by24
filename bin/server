@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python3 -m run80by24.server

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+CONF_FILE=${1:-~/.80by24.conf}
+eval "$(python3 pyargs.py $CONF_FILE)"
+
+TERM_ID=$(python3 id_hash.py $passphrase)
+wscat -c $host/tty/$TERM_ID/readline
