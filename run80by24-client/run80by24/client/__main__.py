@@ -27,25 +27,27 @@ class App:
         self.info.baudrate = curses.baudrate()
         self.info.lines, self.info.cols = scr.getmaxyx()
 
-    async def start(self):
+    @asyncio.coroutine
+    def start(self):
         retries = 5
         sleepytime = 0
         while True:
             try:
-                await asyncio.sleep(sleepytime)
+                yield from asyncio.sleep(sleepytime)
                 if retries == 0:
                     break
                 self.writeline('Connecting to {}... '.format(self.url), False)
                 retries -= 1
-                async with websockets.connect(self.url) as conn:
-                    retries = 5
-                    self.writeline('done.')
-                    await conn.send(str(self.info))
-                    await self.handle_messages(conn)
+                conn = yield from websockets.connect(self.url)
+                retries = 5
+                self.writeline('done.')
+                yield from conn.send(str(self.info))
+                yield from self.handle_messages(conn)
             except OSError:
                 self.writeline('failed. Retrying in 5 seconds.')
                 sleepytime = 5
             except asyncio.futures.CancelledError:
+                yield from conn.close()
                 self.writeline('[ktnxbye]')
                 sleepytime = 1
                 retries = 0
@@ -53,9 +55,10 @@ class App:
                 self.writeline('[Disconnected by server.]')
                 sleepytime = 2
 
-    async def handle_messages(self,conn):
+    @asyncio.coroutine
+    def handle_messages(self,conn):
         while True:
-            raw = await conn.recv()
+            raw = yield from conn.recv()
             log.debug('< '+raw)
             msg = m.Message.parse(raw)
             if isinstance(msg,m.Line):
@@ -67,23 +70,25 @@ class App:
             if isinstance(msg,m.ReadLine):
                 curses.flushinp()
                 curses.echo()
-                text = await self.getstr()
+                text = yield from self.getstr()
                 curses.noecho()
-                await conn.send(str(m.LineRead(text)))
+                yield from conn.send(str(m.LineRead(text)))
             if isinstance(msg,m.ReadKey):
                 curses.flushinp()
                 if msg.echo:
                     curses.echo()
-                key = await self.getkey()
+                key = yield from self.getkey()
                 curses.noecho()
-                await conn.send(str(m.KeyRead(key)))
+                yield from conn.send(str(m.KeyRead(key)))
 
-    async def getstr(self):
-        bytes = await asyncio.get_event_loop().run_in_executor(None,self.scr.getstr)
+    @asyncio.coroutine
+    def getstr(self):
+        bytes = yield from asyncio.get_event_loop().run_in_executor(None,self.scr.getstr)
         return str(bytes, 'utf-8')
 
-    async def getkey(self):
-        key = await asyncio.get_event_loop().run_in_executor(None,self.scr.getkey)
+    @asyncio.coroutine
+    def getkey(self):
+        key = yield from asyncio.get_event_loop().run_in_executor(None,self.scr.getkey)
         return key
 
     def writepage(self,text,halign='left',valign='top'):
@@ -102,7 +107,7 @@ class App:
     def writeline(self,text,newline=True,halign='left'):
         y, _ = self.scr.getyx()
         twidth = min(self.info.cols, len(text))
-        text = text+('\n' if newline and len(text)!=self.info.cols and halign!='right' else '')
+        text = text.strip('\r')+('\n' if newline and len(text)!=self.info.cols and halign!='right' else '')
         if halign=='left':
             self.scr.addstr(text)
         elif halign=='center':
@@ -136,7 +141,7 @@ def run_in_curses(scr):
     curses.nonl()
     curses.noecho()
     app = App(scr)
-    maintask = asyncio.ensure_future(app.start())
+    maintask = asyncio.get_event_loop().create_task(app.start())
     try:
         asyncio.get_event_loop().run_until_complete(maintask)
     except KeyboardInterrupt:
