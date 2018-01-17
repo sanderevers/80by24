@@ -1,0 +1,73 @@
+from .exceptions import AbortRequestException
+from .state import State
+from .conf import BotConfig
+from aiohttp import web
+import logging
+from run80by24.common.id_generator import id_hash
+
+routes = web.RouteTableDef()
+
+class Chat:
+    def __init__(self):
+        self.ttyId = None
+        self.waiting = False
+
+update_path = '/bot/{secret}/update'
+
+@routes.post(update_path)
+async def recv_updates(req):
+    if req.match_info['secret'] != BotConfig.apikey:
+        raise AbortRequestException()
+
+    state = State.of(req.app)
+
+    update = await req.json()
+    logging.debug(str(update))
+    msg = update.get('message')
+    if msg:
+        text = msg['text']
+        #user_id = msg['from']['id']
+        chat_id = msg['chat']['id']
+        chat = state.chats.setdefault(chat_id,Chat())
+
+        hd,*tl = text.split()
+        if chat.waiting:
+            chat.ttyId = id_hash([hd]+tl)
+            chat.waiting = False
+            await reply(state,chat_id,'Thank you! Anything you say to me from now will show up at your terminal.')
+        elif hd=='/start':
+            await reply(state,chat_id,'Hi! I can relay messages to your 80by24.net terminal.')
+            await ask_passphrase(state, chat_id)
+        elif hd=='/pw':
+            if tl:
+                chat.ttyId = id_hash(tl)
+                chat.waiting = False
+                await reply(state, chat_id, 'Thank you! Anything you say to me from now will show up at your terminal.')
+            else:
+                await ask_passphrase(state,chat_id)
+        else:
+            if chat.ttyId:
+                async with state.clientSession.post(BotConfig.tty_endpoint.format(ttyId=chat.ttyId),data=text) as resp:
+                    log.debug('{} on POST to {}: {}'.format(resp.status,chat.ttyId,text))
+            else:
+                await ask_passphrase(state,chat_id)
+    return web.Response(status=200)
+
+async def ask_passphrase(state,chat_id):
+    chat = state.chats[chat_id]
+    ans = '''What is your terminal's passphrase?'''
+    chat.waiting = True
+    await reply(state, chat_id, ans)
+
+
+async def reply(state,chat_id,text):
+    url = BotConfig.msg_endpoint.format(apikey=BotConfig.apikey)
+    data = {
+        'chat_id':chat_id,
+        'text':text
+    }
+    async with state.clientSession.post(url,json=data) as resp:
+        json = await resp.json()
+        log.debug('reply: {}: {}'.format(resp.status,json))
+
+log = logging.getLogger(__name__)
