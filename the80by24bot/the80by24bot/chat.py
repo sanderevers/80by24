@@ -52,7 +52,9 @@ class Chat:
                             await self.send("Sorry, that didn't work.")
                 elif cmd is None:
                     if self.ttyId:
-                        await self.tty_cmd('line',args)
+                        success = await self.tty_cmd('line',args)
+                        if not success:
+                            await self.send("I'm afraid your terminal has disappeared!")
                     else:
                         await self.send('Please identify your terminal first. Use /pw')
                 else:
