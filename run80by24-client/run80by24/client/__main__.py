@@ -5,6 +5,7 @@ import asyncio
 import logging
 import sys
 import os.path
+import tempfile
 from ..common import messages as m
 from ..common import id_generator
 from .conf import ClientConfig as config
@@ -31,20 +32,28 @@ class App:
     def start(self):
         retries = 5
         sleepytime = 0
+        hasconnected = False
         while True:
             try:
                 yield from asyncio.sleep(sleepytime)
                 if retries == 0:
                     break
-                self.writeline('Connecting to {}... '.format(self.url), False)
+                log.info('Try to open websocket at {}'.format(self.url))
+                if not hasconnected:
+                    self.writeline('Connecting to {}... '.format(self.url), False)
                 retries -= 1
                 conn = yield from websockets.connect(self.url)
+                log.info('Connection succeeded.')
+                if not hasconnected:
+                    self.writeline('done.')
                 retries = 5
-                self.writeline('done.')
+                hasconnected = True
                 yield from conn.send(str(self.info))
                 yield from self.handle_messages(conn)
             except OSError:
-                self.writeline('failed. Retrying in 5 seconds.')
+                log.info('Connection failed.')
+                if not hasconnected:
+                    self.writeline('failed. Retrying in 5 seconds.')
                 sleepytime = 5
             except asyncio.futures.CancelledError:
                 yield from conn.close()
@@ -52,7 +61,7 @@ class App:
                 sleepytime = 1
                 retries = 0
             except websockets.exceptions.ConnectionClosed:
-                self.writeline('[Disconnected by server.]')
+                log.info('[Disconnected by server.]')
                 sleepytime = 2
 
     @asyncio.coroutine
@@ -154,9 +163,14 @@ def main():
         read_config(sys.argv[1])
     elif os.path.exists(default_config_file):
         read_config(default_config_file)
+    logfile = tempfile.TemporaryFile(mode='w+')
+    logging.basicConfig(level=logging.INFO, stream=logfile, format='%(asctime)s %(levelname)s:%(name)s:%(message)s')
     curses.wrapper(run_in_curses)
+    logfile.flush()
+    logfile.seek(0)
+    print(logfile.read())
+    logfile.close()
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__package__)
 if __name__=='__main__':
     main()
