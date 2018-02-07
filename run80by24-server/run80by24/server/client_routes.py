@@ -2,7 +2,7 @@ from .exceptions import AbortRequestException
 from .state import State
 from ..common import messages as m
 from ..common import id_generator
-from .session import FeedSession
+from .clients import FeedClient
 from aiohttp import web
 
 routes = web.RouteTableDef()
@@ -23,28 +23,39 @@ async def find_id(req, path):
     ttyId = id_generator.id_hash(words)
     return web.Response(text=ttyId)
 
+@routes.get('/tty/{ttyId}/dev')
+@augment
+async def dev_endpoint(req, path, ttyId):
+    client = find_client(req.app, ttyId)
+    if client.devc:
+        return web.Response(status=409, text='This endpoint is already in use.')
+    socket = web.WebSocketResponse(heartbeat=15)
+    await socket.prepare(req)
+    await client.run_dev_client(path,socket)
+    return socket
+
 @routes.get('/tty/{ttyId}/readline')
 @augment
 async def read_line(req, path, ttyId):
-    client = find_session(req.app, ttyId)
-    # if client.rlc:
-    #     return web.Response(status=409, text='This endpoint is already in use.')
+    client = find_client(req.app, ttyId)
+    if client.rlc:
+        return web.Response(status=409, text='This endpoint is already in use.')
     socket = web.WebSocketResponse(heartbeat=15)
     await socket.prepare(req)
-    await client.read_line_conv(socket)
+    await client.read_line(path,socket)
     return socket
 
-# @routes.get('/tty/{ttyId}/readkey')
-# @augment
-# async def read_line(req, path, ttyId):
-#     client = find_client(req.app, ttyId)
-#     if client.rlc:
-#         return web.Response(status=409, text='This endpoint is already in use.')
-#     echo = parse_echo(req.query.getall('echo',[]))
-#     socket = web.WebSocketResponse(heartbeat=15)
-#     await socket.prepare(req)
-#     await client.read_key(path,socket,echo)
-#     return socket
+@routes.get('/tty/{ttyId}/readkey')
+@augment
+async def read_line(req, path, ttyId):
+    client = find_client(req.app, ttyId)
+    if client.rlc:
+        return web.Response(status=409, text='This endpoint is already in use.')
+    echo = parse_echo(req.query.getall('echo',[]))
+    socket = web.WebSocketResponse(heartbeat=15)
+    await socket.prepare(req)
+    await client.read_key(path,socket,echo)
+    return socket
 
 def parse_echo(queryvals):
     return 'on' in queryvals
@@ -55,35 +66,34 @@ async def feed_endpoint(req, path, ttyId):
     clients = State.of(req.app).clients
     if ttyId in clients:
         return web.Response(status=409, text='This endpoint is already in use.')
-    client = FeedSession(ttyId)
+    client = FeedClient(path, ttyId)
     clients[ttyId] = client
 
     socket = web.WebSocketResponse(heartbeat=15)
     await socket.prepare(req)
-    await client.run_socket(socket)
-    #await client.close()
-    if not client.open:
-        del clients[ttyId]
+    await client.run(socket)
+    await client.close()
+    del clients[ttyId]
     return socket
 
 @routes.post('/tty/{ttyId}/line')
 @augment
 async def post_line(req, path, ttyId):
-    client = find_session(req.app, ttyId)
+    client = find_client(req.app, ttyId)
     text = await req.text()
     opts = parse_align_opts(req.query.getall('align',[]),'h')
 
-    await client.schedule_send(m.Line(text,**opts))
+    await client.send(m.Line(text,**opts))
     return web.Response(status=200)
 
 @routes.post('/tty/{ttyId}/page')
 @augment
 async def post_page(req, path, ttyId):
-    client = find_session(req.app, ttyId)
+    client = find_client(req.app, ttyId)
     text = await req.text()
     opts = parse_align_opts(req.query.getall('align',[]),'hv')
 
-    await client.schedule_send(m.Page(text,**opts))
+    await client.send(m.Page(text,**opts))
     return web.Response(status=200)
 
 def parse_align_opts(queryvals,hv):
@@ -100,8 +110,8 @@ def parse_align_opts(queryvals,hv):
 @routes.post('/tty/{ttyId}/cls')
 @augment
 async def post_cls(req, path, ttyId):
-    client = find_session(req.app, ttyId)
-    await client.schedule_send(m.Cls())
+    client = find_client(req.app, ttyId)
+    await client.send(m.Cls())
     return web.Response(status=200)
 
 def get_req_info(req):
@@ -109,7 +119,7 @@ def get_req_info(req):
     info['path'] = req.match_info.route.url_for(**req.match_info)
     return info
 
-def find_session(app, ttyId):
+def find_client(app, ttyId):
     try:
         return State.of(app).clients[ttyId]
     except KeyError:

@@ -56,7 +56,8 @@ class App:
                     self.writeline('failed. Retrying in 5 seconds.')
                 sleepytime = 5
             except asyncio.futures.CancelledError:
-                yield from conn.close()
+                if conn:
+                    yield from conn.close()
                 self.writeline('[ktnxbye]')
                 sleepytime = 1
                 retries = 0

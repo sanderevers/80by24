@@ -3,23 +3,106 @@ import asyncio
 import logging
 import contextlib
 from .banner import banner
+from .aqueue import FiniteQueue
 
 class ClientInfo():
     def __init__(self,ttyId):
         self.ttyId = ttyId
-class FiniteQueue(asyncio.queues.Queue):
-    End = object()
-    def __aiter__(self):
-        return self
+
+class Session:
+    def __init__(self):
+        self.socket = None
+        self.got_socket = asyncio.Event()
+        self.sendq = FiniteQueue()
+        self.recvq = FiniteQueue()
+        self.psq = asyncio.ensure_future(self.process_sendq())
+   #     self.prq = asyncio.ensure_future(self.proccess_recvq())
+        self.pprot = asyncio.ensure_future(self.run_protocol())
+
+    # how to differentiate between network loss and self cancel?
+    # self-cancel closes the socket first, then FiniteQueue.End
+    # async def process_sendq(self):
+    #     async for msg in self.sendq:
+    #         log.debug('{} < {}'.format(self.path, msg))
+    #         while True:
+    #             try:
+    #                 await self.socket.send_str(msg)
+    #                 break
+    #             except asyncio.CancelledError:
+    #                 if self.closing:
+    #                     break
+    #                 else:
+    #                     wait_for_socket_to_return
+    #         if self.closing:
+    #             break
+
+    # cancel using SessionCloseException
+    async def process_sendq(self):
+        async for msg in self.sendq:
+            while True:
+                socket = await self.get_socket()
+                with contextlib.suppress(asyncio.CancelledError): # connection drop
+                    await socket.send_str(msg)
+                    break
+
+    async def schedule_send(self,text):
+        await self.sendq.put(text)
+
+    async def recv(self):
+        return await self.recvq.get()
+
+    # async def process_recvq(self):
+    #     async for msg in self.recvq:
+    #         handled = await self.handle_message(msg)
+
+    # async def process_sendq(self):
+    #     async with self.reget_socket() as socket:
+    #         async for msg in self.sendq:
+    #             try:
+    #                 await socket.send_str(msg)
+    #             except asyncio.CancelledError:
+    #                 raise CancelledWhileSendingException(msg)
+
+    def set_socket(self,socket):
+        if self.socket:
+            raise SocketOccupiedException
+        self.socket = socket
+        self.got_socket.set()
+
+    def unset_socket(self):
+        self.socket = None
+        self.got_socket.clear()
+
+    async def get_socket(self,socket):
+        await self.got_socket.wait()
+        return self.socket
+
+    async def run_protocol(self):
+        self.schedule_send_banner()
+        async for msg in self.recvq:
+            pass
+
+    async def run_socket(self,socket):
+        self.set_socket(socket)
+        # wait until the other side closes the socket properly
+        with contextlib.suppress(asyncio.CancelledError):  # or the connection is dropped
+            async for msg in self.socket:
+                # dispatch to recvq so we can react immediately on connection drop/close
+                await self.recvq.put(msg)
+            await self.close() # on deliberate client-close: free resources
+        self.unset_socket()
+
     async def close(self):
-        await self.put(FiniteQueue.End) # how to dispatch this to all getters?
-    async def __anext__(self):
-        elt = await self.get()
-        if elt is FiniteQueue.End:
-            # maybe here? self.put_nowait(FiniteQueue.End)
-            raise StopAsyncIteration
-        else:
-            return elt
+        if self.socket:
+            await self.socket.close()
+            self.unset_socket()
+        self.psq.set_exception(SessionClosedException())
+        self.recvq.close()
+        try:
+            await asyncio.wait_for(self.pprot,1)
+        except asyncio.TimeoutError:
+            log.debug('protocol force-cancelled after timeout')
+
 
 
 class BaseClient:
