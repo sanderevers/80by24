@@ -1,4 +1,4 @@
-import asyncio.queues
+import asyncio
 import logging
 from aiohttp import web
 
@@ -12,7 +12,6 @@ def create():
     app.router.add_routes(routes)
     app.on_shutdown.append(close_websockets)
     return app
-
 
 # async def shutdown_close(ws):
 #    await ws.close(code=http.WSCloseCode.GOING_AWAY, message='Server shutdown')

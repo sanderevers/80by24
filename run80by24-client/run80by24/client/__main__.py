@@ -55,9 +55,10 @@ class App:
                 if not hasconnected:
                     self.writeline('failed. Retrying in 5 seconds.')
                 sleepytime = 5
-            except asyncio.futures.CancelledError:
+            except asyncio.CancelledError:
                 if conn:
                     yield from conn.close()
+                    log.info('Closed connection.')
                 self.writeline('[ktnxbye]')
                 sleepytime = 1
                 retries = 0

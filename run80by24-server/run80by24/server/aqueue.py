@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 class FiniteQueue(asyncio.Queue):
     End = object()
@@ -33,3 +34,5 @@ class Subscriber():
         res = await self.waiter
         self.replace_waiter()
         return res
+
+log = logging.getLogger(__name__)
