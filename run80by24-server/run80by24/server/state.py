@@ -1,6 +1,6 @@
 class State:
     def __init__(self):
-        self.clients = {}
+        self.sessions = {}
 
     @staticmethod
     def init(app):

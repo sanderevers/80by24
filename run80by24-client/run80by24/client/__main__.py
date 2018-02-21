@@ -35,6 +35,7 @@ class App:
         hasconnected = False
         while True:
             try:
+                conn = None
                 yield from asyncio.sleep(sleepytime)
                 if retries == 0:
                     break

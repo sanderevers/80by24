@@ -5,6 +5,7 @@ class ServerConfig:
     port = 8080
     logfile = None  # 'server.log'
     debug = True
+    debug_asyncio = False
 
     @staticmethod
     def read(filename):

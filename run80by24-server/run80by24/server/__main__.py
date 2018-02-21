@@ -10,7 +10,7 @@ def main():
     if len(sys.argv)>1:
         ServerConfig.read(sys.argv[1])
 
-    if ServerConfig.debug:
+    if ServerConfig.debug_asyncio:
         asyncio.get_event_loop().set_debug(True)
         warnings.simplefilter("always", ResourceWarning)
     logging.basicConfig(level=logging.DEBUG if ServerConfig.debug else logging.INFO, filename=ServerConfig.logfile)

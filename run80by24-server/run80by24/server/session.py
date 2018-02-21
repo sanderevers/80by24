@@ -19,6 +19,8 @@ class BaseSession:
         self.got_socket = asyncio.Event()
         self.session_id=session_id
         self.tasks = []
+        self.open = True
+        log.info('{}: OPEN'.format(session_id))
 
     async def run_socket(self,socket):
         self.set_socket(socket)
@@ -26,8 +28,7 @@ class BaseSession:
         with contextlib.suppress(asyncio.CancelledError):  # or the connection is dropped
             async for wsm in self.socket:
                 await self.handle_incoming(wsm.data)
-            # dit wel doen VV
-            #await self.close() # on deliberate client-close: free resources
+            await self.close() # on deliberate client-close: also close session
         self.unset_socket()
 
     def set_socket(self,socket):
@@ -51,32 +52,38 @@ class BaseSession:
         except asyncio.CancelledError:
             pass # so we can await a task being stopped
         except:
-            log.error('Exception in {}: {}'.format(self.session_id, traceback.format_exc()))
+            log.error('{}: Exception in task: {}'.format(self.session_id, traceback.format_exc()))
 
     async def stop_tasks(self):
-        if self.tasks:
-            for task in self.tasks:
+        waitfor = []
+        for task in self.tasks:
+            if not task.done() and not task is asyncio.Task.current_task():
                 task.cancel()
-            await asyncio.wait(self.tasks) # necessary for server close
+                waitfor.append(task)
+        if waitfor:
+            await asyncio.wait(waitfor) # necessary for server close
 
     async def send(self,text):
         socket = await self.get_socket()
         socket.send_str(text)
+        log.debug('{}: > {}'.format(self.session_id, text[:20]+'...'))
 
     async def get_socket(self):
         await self.got_socket.wait()
         return self.socket
 
     async def handle_incoming(self,text):
-        log.debug('{} < {} [IGNORED]'.format(self.session_id,text))
+        log.debug('{}: < {} [IGNORED]'.format(self.session_id,text))
 
     async def close(self):
-        if self.socket:
-            log.debug('{} starting to close'.format(self.session_id))
-            await self.socket.close()
-            log.debug('{} closed'.format(self.session_id))
-            self.unset_socket()
-        await self.stop_tasks()
+        if self.open:
+            self.open = False
+            log.debug('{}: CLOSING'.format(self.session_id))
+            if self.socket:
+                await self.socket.close()
+                self.unset_socket()
+            await self.stop_tasks()
+            log.info('{}: CLOSED'.format(self.session_id))
 
 class FeedSession(BaseSession):
     def __init__(self,session_id):
@@ -89,17 +96,15 @@ class FeedSession(BaseSession):
         self.spawn_task(self.listen_info())
         self.spawn_task(self.send_passphrase())
         self.subscriberlists = defaultdict(list) # message class -> [Future]
-        self.open = True
 
     async def process_sendq(self):
-       # with contextlib.suppress(asyncio.CancelledError):
-            async for msg in self.sendq:
-                while True:
-                    try:
-                        await self.send(msg)
-                        break
-                    except RuntimeError as err: #connection drop
-                        log.info('{} retry sending {} because of {}'.format(self.session_id, msg, err))
+        async for msg in self.sendq:
+            while True:
+                try:
+                    await self.send(msg)
+                    break
+                except RuntimeError as err: #connection drop
+                    log.info('{}: retry sending {} because of {}'.format(self.session_id, msg, err))
 
     async def handle_incoming(self,text):
         # dispatch to recvq so we can react immediately on connection drop/close
@@ -109,28 +114,22 @@ class FeedSession(BaseSession):
         await self.sendq.put(str(msg))
 
     async def run_protocol(self):
-       # with contextlib.suppress(asyncio.CancelledError):
-            await self.schedule_banner()
-            async for msg in self.recvq:
-                subs = self.subscriberlists[msg.__class__]
-                if subs:
-                    for sub in subs:
-                        sub.set_result(msg)
-                else:
-                    log.debug('No subscribers for {}'.format(msg.__class__))
+        await self.schedule_banner()
+        async for msg in self.recvq:
+            subs = self.subscriberlists[msg.__class__]
+            if subs:
+                log.debug('{}: < {}'.format(self.session_id, msg.__class__.__name__))
+                for sub in subs:
+                    sub.set_result(msg)
+            else:
+                log.debug('{}: No subscribers for {}'.format(msg.__class__.__name__))
 
     async def schedule_banner(self):
         for line in banner.splitlines():
             await self.schedule_send(m.Line(line))
 
-
     async def close(self):
         await super().close()
-        self.open = False
-        # try:
-        #     await asyncio.wait_for(self.pprot,1)
-        # except asyncio.TimeoutError:
-        #     log.debug('{}: protocol force-cancelled after timeout'.format(self.session_id))
 
     async def subscribe_once(self,mclass):
         fut = asyncio.Future()
@@ -140,38 +139,40 @@ class FeedSession(BaseSession):
         return res
 
     async def listen_info(self):
-       # with contextlib.suppress(SessionClosedException):
-            async for msg in Subscriber(self.subscriberlists[m.Info]):
-                for k, v in msg.__dict__.items():
-                    setattr(self.info, k, v)
-                log.debug('{} > INFO({})'.format(self.session_id, self.info.__dict__))
+        async for msg in Subscriber(self.subscriberlists[m.Info]):
+            for k, v in msg.__dict__.items():
+                setattr(self.info, k, v)
+            log.debug('{}: info acquired'.format(self.session_id))
 
     async def send_passphrase(self):
-      #  with contextlib.suppress(SessionClosedException):
-            msg = await self.subscribe_once(m.Info)
-            text = 'Access this terminal with the following passphrase:'
-            await self.schedule_send(m.Line(text))
-            await self.schedule_send(m.Line(msg.passphrase))
+        msg = await self.subscribe_once(m.Info)
+        text = 'Access this terminal with the following passphrase:'
+        await self.schedule_send(m.Line(text))
+        await self.schedule_send(m.Line(msg.passphrase))
 
 
-    async def read_line_conv(self,socket):
+    async def read_line_conv(self,socket,line=True,echo=False):
         rls = BaseSession(self.session_id+'_R')
 
         async def copy_from_feedclient():
             try:
-                await self.schedule_send(m.ReadLine())
-                lr = await self.subscribe_once(m.LineRead)
-                await rls.send(lr.text)
+                if line:
+                    await self.schedule_send(m.ReadLine())
+                    lr = await self.subscribe_once(m.LineRead)
+                    await rls.send(lr.text)
+                else:
+                    await self.schedule_send(m.ReadKey(echo=echo))
+                    kr = await self.subscribe_once(m.KeyRead)
+                    await rls.send(kr.key)
             except asyncio.CancelledError:
                 log.info('{} closing because parent session closes:'.format(rls.session_id))
-                log.info(traceback.format_exc())
             finally:
-                #await rls.send('Terminal/server going away') # throws if rls closed
-                await rls.close()
+                await asyncio.shield(rls.close()) # otherwise it will indirectly cancel itself
 
         copy_task = self.spawn_task(copy_from_feedclient())
         await rls.run_socket(socket)
-        if  not copy_task.done():
+        await rls.close()
+        if not copy_task.done():
             copy_task.cancel()
             await copy_task
 

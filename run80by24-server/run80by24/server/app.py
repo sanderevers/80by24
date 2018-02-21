@@ -18,10 +18,10 @@ def create():
 #    log.debug('socket status: {}:{}'.format(ws.closed,ws.close_code))
 
 async def close_websockets(app):
-    client_closers = [c.close() for c in State.of(app).clients.values()]
-    if len(client_closers)>0:
-        await asyncio.wait(client_closers)
-    log.debug('closed {} clients'.format(len(client_closers)))
+    session_closers = [c.close() for c in State.of(app).sessions.values()]
+    if len(session_closers)>0:
+        await asyncio.wait(session_closers)
+    log.debug('closed {} clients'.format(len(session_closers)))
 
 
 @web.middleware
