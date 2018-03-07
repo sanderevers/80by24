@@ -10,6 +10,8 @@ from ..common import messages as m
 from ..common import id_generator
 from .conf import ClientConfig as config
 from .conf import read as read_config
+from .thread import async_run_in_daemon_thread
+
 
 class App:
     def __init__(self,scr):
@@ -95,12 +97,14 @@ class App:
 
     @asyncio.coroutine
     def getstr(self):
-        bytes = yield from asyncio.get_event_loop().run_in_executor(None,self.scr.getstr)
+        # need to run in daemon thread so it gets killed on python exit (Ctrl-C)
+        bytes = yield from async_run_in_daemon_thread(self.scr.getstr)
         return str(bytes, 'utf-8')
 
     @asyncio.coroutine
     def getkey(self):
-        key = yield from asyncio.get_event_loop().run_in_executor(None,self.scr.getkey)
+        # need to run in daemon thread so it gets killed on python exit (Ctrl-C)
+        key = yield from async_run_in_daemon_thread(self.scr.getkey)
         return key
 
     def writepage(self,text,halign='left',valign='top'):
