@@ -122,7 +122,7 @@ class FeedSession(BaseSession):
                 for sub in subs:
                     sub.set_result(msg)
             else:
-                log.debug('{}: No subscribers for {}'.format(msg.__class__.__name__))
+                log.debug('{}: No subscribers for {}'.format(self.session_id,msg.__class__.__name__))
 
     async def schedule_banner(self):
         for line in banner.splitlines():
