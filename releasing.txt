@@ -1,0 +1,6 @@
+- increase version number in package __init__.py
+- increase version number in setup.py
+- rm dist/*
+- python3 setup.py sdist
+- python3 setup.py bdist_wheel
+- twine upload dist/*
