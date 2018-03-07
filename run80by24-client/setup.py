@@ -33,7 +33,7 @@ setup(
 
     keywords='terminal console',
     packages=['run80by24.'+pkg for pkg in find_packages('run80by24')],
-    install_requires=['pyyaml','websockets','run80by24-common'],
+    install_requires=['pyyaml','websockets','run80by24-common==0.2.0'],
     # package_data={  # Optional
     #     'sample': ['package_data.dat'],
     # },

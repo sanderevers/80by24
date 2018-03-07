@@ -33,7 +33,7 @@ setup(
 
     keywords='terminal console',
     packages=['run80by24.'+pkg for pkg in find_packages('run80by24')],
-    install_requires=['aiohttp>=2.3.2','pyyaml','run80by24-common'],  # Optional
+    install_requires=['aiohttp>=2.3.2','pyyaml','run80by24-common==0.2.0'],  # Optional
     # package_data={  # Optional
     #     'sample': ['package_data.dat'],
     # },
