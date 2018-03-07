@@ -18,7 +18,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='run80by24-server',
-    version='0.1.0',
+    version='0.2.0',
     description='Server for publishing to text terminals over HTTP.',
     long_description=long_description,
     url='https://80by24.net',
