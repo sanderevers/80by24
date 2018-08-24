@@ -8,3 +8,4 @@ build
 node_modules
 config.py
 bot.conf
+instance
