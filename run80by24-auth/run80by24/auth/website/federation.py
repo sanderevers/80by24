@@ -22,7 +22,7 @@ class Federation:
 
     def init_app(self, app):
         self._authlib_clients.init_app(app)
-        self.register('solidsea', client_cls=OIDCClient, discovery_url=app.config['OIDC_DISCOVERY_URL'])
+        self.register('solidsea', client_cls=OIDCClient, discovery_url=app.config['SOLIDSEA_DISCOVERY_URL'])
 
 
 class OIDCClient(RemoteApp):
@@ -31,7 +31,7 @@ class OIDCClient(RemoteApp):
         self.issuer = discovery['issuer']
         self.jwks_uri = discovery['jwks_uri']
         self.jwks = {'keys':[]}
-        kwargs['client_kwargs'] = {'scope':'openid email'}
+        kwargs['client_kwargs'] = {'scope':'openid'}
         kwargs['authorize_url'] = discovery['authorization_endpoint']
         kwargs['access_token_url'] = discovery['token_endpoint']
         super().__init__(name, **kwargs)

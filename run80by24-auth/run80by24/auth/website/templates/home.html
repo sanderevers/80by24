@@ -1,5 +1,4 @@
-{% if user %}
-  <style>pre{white-space:wrap}</style>
+<style>pre{white-space:wrap}</style>
 <div>Logged in as <strong>{{user}}</strong></div>
 
 {% for client in clients %}
@@ -12,9 +11,3 @@
 
 <br><a href="{{ url_for('.create_client') }}">Create Client</a>
 
-{% else %}
-<form action="" method="post">
-  <input type="text" name="username" placeholder="username">
-  <button type="submit">Login / Signup</button>
-</form>
-{% endif %}

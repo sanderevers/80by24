@@ -49,25 +49,25 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
         return User.query.get(credential.user_id)
 
 
-authorization = AuthorizationServer()
+auth_server = AuthorizationServer()
 require_oauth = ResourceProtector()
 
 
 def config_oauth(app):
     query_client = create_query_client_func(db.session, OAuth2Client)
     save_token = create_save_token_func(db.session, OAuth2Token)
-    authorization.init_app(
+    auth_server.init_app(
         app, query_client=query_client, save_token=save_token)
 
     # support all grants
-    authorization.register_grant(grants.ImplicitGrant)
-    authorization.register_grant(grants.ClientCredentialsGrant)
-    authorization.register_grant(AuthorizationCodeGrant)
-    authorization.register_grant(RefreshTokenGrant)
+    auth_server.register_grant(grants.ImplicitGrant)
+    auth_server.register_grant(grants.ClientCredentialsGrant)
+    auth_server.register_grant(AuthorizationCodeGrant)
+    auth_server.register_grant(RefreshTokenGrant)
 
     # support revocation
     revocation_cls = create_revocation_endpoint(db.session, OAuth2Token)
-    authorization.register_endpoint(revocation_cls)
+    auth_server.register_endpoint(revocation_cls)
 
     # protect resource
     bearer_cls = create_bearer_token_validator(db.session, OAuth2Token)
