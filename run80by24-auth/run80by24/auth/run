@@ -1,2 +1,2 @@
 #!/bin/bash
-env $(cat SE.env | xargs) flask run
+env $(cat SE.env | xargs) flask run --port=5002

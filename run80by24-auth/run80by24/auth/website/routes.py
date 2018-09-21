@@ -4,14 +4,31 @@ from werkzeug.security import gen_salt
 from authlib.flask.oauth2 import current_token
 from authlib.specs.rfc6749 import OAuth2Error
 from authlib.client.errors import OAuthException
-from .models import db, User, OAuth2Client
+from .models import db, User, OAuth2Client, TTY, MayInteract
 from .auth_server import auth_server, require_oauth
 from .federation import federation
 from urllib.parse import quote_plus
+from contextlib import contextmanager
 from copy import copy
 
 bp = Blueprint(__name__, 'home')
 
+class NotAuthenticatedException(Exception):
+    pass
+
+@contextmanager
+def authenticated_user():
+    user = current_user()
+    if user:
+        g.user = user
+        print('g.user: {}'.format(user.sub))
+        try:
+            yield user
+        finally:
+            g.user = None
+            print('g.user removed')
+    else:
+        raise NotAuthenticatedException
 
 def current_user():
     if 'id' in session:
@@ -39,26 +56,41 @@ def home():
         clients = []
     return render_template('home.html', user=user, clients=clients)
 
+@bp.route('/logout')
+def logout():
+    del session['id']
+    return redirect('/')
 
 @bp.route('/create_client', methods=('GET', 'POST'))
 def create_client():
-    user = current_user()
-    if not user:
-        return authenticate_user()
+    with authenticated_user() as user:
+        if request.method == 'GET':
+            return render_template('create_client.html')
 
-    if request.method == 'GET':
-        return render_template('create_client.html')
+        client = OAuth2Client(**request.form.to_dict(flat=True))
+        client.user_id = user.id
+        client.client_id = gen_salt(24)
+        if client.token_endpoint_auth_method == 'none':
+            client.client_secret = ''
+        else:
+            client.client_secret = gen_salt(48)
+        db.session.add(client)
+        db.session.commit()
+        return redirect('/')
 
-    client = OAuth2Client(**request.form.to_dict(flat=True))
-    client.user_id = user.id
-    client.client_id = gen_salt(24)
-    if client.token_endpoint_auth_method == 'none':
-        client.client_secret = ''
-    else:
-        client.client_secret = gen_salt(48)
-    db.session.add(client)
-    db.session.commit()
-    return redirect('/')
+@bp.route('/claim/<tty_id>')
+def claim(tty_id):
+    with authenticated_user() as user:
+        existing = db.session.query(TTY).filter_by(id=tty_id).first()
+        if not existing:
+            new = TTY(id=tty_id, owner=user)
+            db.session.add(new)
+            db.session.commit()
+            return 'claimed'
+        if existing.owner is user:
+            return 'redundant'
+        else:
+            return 'denied'
 
 
 @bp.route('/authorize', methods=['GET', 'POST'])
@@ -66,22 +98,36 @@ def authorize():
     user = current_user()
     if not user:
         remember_own_flow_args()
-        return authenticate_user()
+        raise NotAuthenticatedException
+    g.user = user
 
     if request.method == 'GET':
         try:
             grant = auth_server.validate_consent_request(end_user=user)
+            perm = db.session.query(MayInteract).filter_by(tty_id=grant.request.scope,client_id=grant.client.client_id).first()
+            if perm:
+                return auth_server.create_authorization_response(grant_user=user)
         except OAuth2Error as error:
             return error.error
         return render_template('authorize.html', user=user, grant=grant)
 
-    if request.form['confirm']:
+    if request.form.get('confirm'):
         grant_user = user
+
+        # save permission
+        grant = auth_server.validate_consent_request(end_user=user)
+        for tty_id in grant.request.scope.split(' '):
+            perm = MayInteract(tty_id = tty_id, client_id = grant.client.client_id)
+            db.session.add(perm)
+        db.session.commit()
     else:
         grant_user = None
     return auth_server.create_authorization_response(grant_user=grant_user)
 
-def authenticate_user():
+
+
+@bp.errorhandler(NotAuthenticatedException)
+def authenticate_user(err):
     oidc_client = federation.get('solidsea')
     redirect_uri = url_for('.callback', _external=True)
     return oidc_client.authorize_redirect(redirect_uri)
@@ -115,12 +161,6 @@ def callback():
 
 @bp.route('/token', methods=['POST'])
 def token():
-    return auth_server.create_token_response()
-
-
-@bp.route('/token', methods=['POST'])
-def issue_token():
-    print(request.form)
     return auth_server.create_token_response()
 
 
