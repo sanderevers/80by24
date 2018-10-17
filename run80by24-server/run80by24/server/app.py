@@ -4,13 +4,16 @@ from aiohttp import web
 
 from .routes import routes
 from .state import State
+from .redis import Redis
 from .exceptions import AbortRequestException
 
 def create():
     app = web.Application(middlewares=[cors_header, exception_mapper])
     State.init(app)
     app.router.add_routes(routes)
+    app.on_startup.append(Redis.init)
     app.on_shutdown.append(close_websockets)
+    app.on_shutdown.append(Redis.teardown)
     return app
 
 # async def shutdown_close(ws):

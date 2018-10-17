@@ -3,7 +3,9 @@ from .state import State
 from ..common import messages as m
 from ..common import id_generator
 from .session import FeedSession
+from .redis import Redis
 from aiohttp import web
+import re
 
 routes = web.RouteTableDef()
 
@@ -70,6 +72,7 @@ async def feed_endpoint(req, path, ttyId):
 @routes.post('/tty/{ttyId}/line')
 @augment
 async def post_line(req, path, ttyId):
+    await check_auth(req,ttyId)
     session = find_session(req.app, ttyId)
     text = await req.text()
     opts = parse_align_opts(req.query.getall('align',[]),'h')
@@ -104,6 +107,26 @@ async def post_cls(req, path, ttyId):
     session = find_session(req.app, ttyId)
     await session.schedule_send(m.Cls())
     return web.Response(status=200)
+
+async def check_auth(req,ttyId):
+    redis = Redis.of(req.app)
+    claimed = await redis.claimed(ttyId)
+    if not claimed:
+        return
+
+    try:
+        header_val = req.headers['Authorization']
+    except:
+        raise AbortRequestException(status=403, text='Authorization header missing.')
+    match = re.match(r'Bearer\s(\S+)', header_val)
+    if match is None:
+        raise AbortRequestException(status=403, text='Bearer token missing from Authorization header.')
+    token = match.group(1)
+    token_scopes = await redis.scopes(token)
+    if ttyId in token_scopes:
+        return
+    else:
+        raise AbortRequestException(status=403, text='Token does not have permission.')
 
 def get_req_info(req):
     info = dict(req.match_info)
