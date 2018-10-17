@@ -5,22 +5,17 @@ from .auth_server import config_oauth
 from .routes import bp
 from .federation import federation
 
-def create_app(config=None):
-    app = Flask(__name__, instance_relative_config=True)
+def create_app(instance_path):
+    app = Flask(__name__, instance_path=instance_path, instance_relative_config=True)
 
     # load default configuration
-    app.config.from_object('website.settings')
+    app.config.from_object('run80by24.auth.website.settings')
 
     # load environment configuration
     if 'WEBSITE_CONF' in os.environ:
         app.config.from_envvar('WEBSITE_CONF')
 
-    # load app sepcified configuration
-    if config is not None:
-        if isinstance(config, dict):
-            app.config.update(config)
-        elif config.endswith('.py') or config.endswith('.cfg'):
-            app.config.from_pyfile(config)
+    app.config.from_pyfile('run80by24-auth.cfg') # in instance dir
 
     setup_app(app)
     return app

@@ -2,3 +2,4 @@ Flask
 Flask-SQLAlchemy
 Authlib
 requests
+redis

@@ -10,6 +10,7 @@ from werkzeug.security import gen_salt
 from .models import db, User
 from .models import OAuth2Client, OAuth2AuthorizationCode, OAuth2Token
 
+import redis
 
 class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
     def create_authorization_code(self, client, user, request):
@@ -52,12 +53,17 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
 auth_server = AuthorizationServer()
 require_oauth = ResourceProtector()
 
+save_token_to_db = create_save_token_func(db.session, OAuth2Token)
+
+def save_token_to_db_and_redis(token,request):
+    save_token_to_db(token,request)
+    auth_server.redis_client.set('token:{}'.format(token['access_token']),token['scope'])
 
 def config_oauth(app):
     query_client = create_query_client_func(db.session, OAuth2Client)
-    save_token = create_save_token_func(db.session, OAuth2Token)
+
     auth_server.init_app(
-        app, query_client=query_client, save_token=save_token)
+        app, query_client=query_client, save_token=save_token_to_db_and_redis)
 
     # support all grants
     auth_server.register_grant(grants.ImplicitGrant)
@@ -65,9 +71,17 @@ def config_oauth(app):
     auth_server.register_grant(AuthorizationCodeGrant)
     auth_server.register_grant(RefreshTokenGrant)
 
+    auth_server.redis_client = redis.StrictRedis(decode_responses=True)
+
     # support revocation
-    revocation_cls = create_revocation_endpoint(db.session, OAuth2Token)
-    auth_server.register_endpoint(revocation_cls)
+    SQLARevocationEndpoint = create_revocation_endpoint(db.session, OAuth2Token)
+
+    class RedisRevocationEndpoint(SQLARevocationEndpoint):
+        def revoke_token(self,token):
+            super().revoke_token(token)
+            auth_server.redis_client.delete('token:{}'.format(token.access_token))
+
+    auth_server.register_endpoint(RedisRevocationEndpoint)
 
     # protect resource
     bearer_cls = create_bearer_token_validator(db.session, OAuth2Token)

@@ -9,7 +9,6 @@ from .auth_server import auth_server, require_oauth
 from .federation import federation
 from urllib.parse import quote_plus
 from contextlib import contextmanager
-from copy import copy
 
 bp = Blueprint(__name__, 'home')
 
@@ -86,6 +85,7 @@ def claim(tty_id):
             new = TTY(id=tty_id, owner=user)
             db.session.add(new)
             db.session.commit()
+            auth_server.redis_client.sadd('claimed',tty_id)
             return 'claimed'
         if existing.owner is user:
             return 'redundant'
@@ -125,7 +125,7 @@ def authorize():
     return auth_server.create_authorization_response(grant_user=grant_user)
 
 
-
+# if user is not authenticated yet, log in with solidsea
 @bp.errorhandler(NotAuthenticatedException)
 def authenticate_user(err):
     oidc_client = federation.get('solidsea')

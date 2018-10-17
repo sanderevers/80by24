@@ -1,11 +1,13 @@
-from website.app import create_app
+from run80by24.auth.website.app import create_app
 import os
 
-app = create_app('run80by24-auth.cfg')
+print(os.getcwd())
+instance_path = os.path.abspath('instance')
+app = create_app(instance_path)
 
 @app.cli.command()
 def initdb():
-    from website.models import db
+    from run80by24.auth.website.models import db
     db.create_all()
 
 # for running in PyCharm debugger
