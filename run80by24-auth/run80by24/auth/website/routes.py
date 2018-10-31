@@ -4,11 +4,13 @@ from werkzeug.security import gen_salt
 from authlib.flask.oauth2 import current_token
 from authlib.specs.rfc6749 import OAuth2Error
 from authlib.client.errors import OAuthException
-from .models import db, User, OAuth2Client, TTY, MayInteract
+from .models import db, User, TTY, MayInteract
+from .oauth_models import OAuth2Client
 from .auth_server import auth_server, require_oauth
 from .federation import federation
 from urllib.parse import quote_plus
 from contextlib import contextmanager
+from . import permission
 
 bp = Blueprint(__name__, 'home')
 
@@ -20,12 +22,10 @@ def authenticated_user():
     user = current_user()
     if user:
         g.user = user
-        print('g.user: {}'.format(user.sub))
         try:
             yield user
         finally:
             g.user = None
-            print('g.user removed')
     else:
         raise NotAuthenticatedException
 
@@ -51,9 +51,13 @@ def home():
     user = current_user()
     if user:
         clients = OAuth2Client.query.filter_by(user_id=user.id).all()
+        ttys = TTY.query.filter_by(owner=user).all()
+        grants = MayInteract.query.filter(MayInteract.tty_id.in_([tty.id for tty in ttys])).all()
     else:
         clients = []
-    return render_template('home.html', user=user, clients=clients)
+        ttys = []
+        grants = []
+    return render_template('home.html', user=user, clients=clients, ttys=ttys, grants=grants)
 
 @bp.route('/logout')
 def logout():
@@ -80,18 +84,15 @@ def create_client():
 @bp.route('/claim/<tty_id>')
 def claim(tty_id):
     with authenticated_user() as user:
-        existing = db.session.query(TTY).filter_by(id=tty_id).first()
-        if not existing:
-            new = TTY(id=tty_id, owner=user)
-            db.session.add(new)
-            db.session.commit()
-            auth_server.redis_client.sadd('claimed',tty_id)
+        tty = TTY.query.get(tty_id)
+        if not tty:
+            tty = TTY(id=tty_id)
+            permission.Owner(user,tty).grant_by('80by24')
             return 'claimed'
-        if existing.owner is user:
+        if permission.Owner(user,tty).test():
             return 'redundant'
         else:
             return 'denied'
-
 
 @bp.route('/authorize', methods=['GET', 'POST'])
 def authorize():
@@ -104,21 +105,23 @@ def authorize():
     if request.method == 'GET':
         try:
             grant = auth_server.validate_consent_request(end_user=user)
-            perm = db.session.query(MayInteract).filter_by(tty_id=grant.request.scope,client_id=grant.client.client_id).first()
-            if perm:
+            tty_id = grant.request.scope # support multiple ttys?
+            tty = TTY.query.get(tty_id)
+            if permission.ToInteract(grant.client, tty).test():
                 return auth_server.create_authorization_response(grant_user=user)
         except OAuth2Error as error:
             return error.error
         return render_template('authorize.html', user=user, grant=grant)
 
+    # POST
     if request.form.get('confirm'):
         grant_user = user
 
         # save permission
         grant = auth_server.validate_consent_request(end_user=user)
         for tty_id in grant.request.scope.split(' '):
-            perm = MayInteract(tty_id = tty_id, client_id = grant.client.client_id)
-            db.session.add(perm)
+            tty = db.session.query(TTY).get(tty_id)
+            permission.ToInteract(grant.client,tty).grant_by(user)
         db.session.commit()
     else:
         grant_user = None
@@ -163,10 +166,20 @@ def callback():
 def token():
     return auth_server.create_token_response()
 
-
 @bp.route('/revoke', methods=['POST'])
 def revoke_token():
     return auth_server.create_endpoint_response('revocation')
+
+@bp.route('/owner-revoke', methods=['GET']) # hmmm GET?
+def owner_revoke():
+    with authenticated_user() as user:
+        #try:
+            client = OAuth2Client.query.filter_by(client_id=request.args['client_id']).one()
+            tty = TTY.query.get(request.args['tty_id'])
+            permission.ToInteract(client,tty).revoke_by(user)
+            return redirect(url_for('.home'))
+        # except:
+        #     return 400
 
 
 @bp.route('/api/me')

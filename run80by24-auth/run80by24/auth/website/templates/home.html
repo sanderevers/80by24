@@ -1,6 +1,20 @@
 <style>pre{white-space:wrap}</style>
 <div>Logged in as <strong>{{user}}</strong></div>
 
+<h2>TTYs that you own:</h2>
+
+{% for tty in ttys %}
+<pre>{{ tty.id }}</pre>
+{% endfor %}
+
+<h2>Scopes that you have granted:</h2>
+{% for mayinteract in grants %}
+<pre>{{ mayinteract.client.client_id }} : {{ mayinteract.tty.id }}
+    (<a href="{{ url_for('.owner_revoke',client_id=mayinteract.client.client_id,tty_id=mayinteract.tty.id) }}">revoke</a>)</pre>
+{% endfor %}
+
+<h2>Clients that you own:</h2>
+
 {% for client in clients %}
 <pre>
 {{ client.client_info|tojson }}

@@ -10,7 +10,10 @@ def initdb():
     from run80by24.auth.website.models import db
     db.create_all()
 
-# for running in PyCharm debugger
-if __name__=='__main__':
+def debug():
     os.environ['AUTHLIB_INSECURE_TRANSPORT']='1'
     app.run(debug=True, use_debugger=False, use_reloader=False, port=app.config['PORT'])
+
+# for running in PyCharm debugger
+if __name__=='__main__':
+    debug()

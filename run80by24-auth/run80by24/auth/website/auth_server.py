@@ -8,7 +8,8 @@ from authlib.flask.oauth2.sqla import (
 from authlib.specs.rfc6749 import grants
 from werkzeug.security import gen_salt
 from .models import db, User
-from .models import OAuth2Client, OAuth2AuthorizationCode, OAuth2Token
+from .oauth_models import OAuth2Client, OAuth2AuthorizationCode, OAuth2Token
+from .permission import deps as permission_deps
 
 import redis
 
@@ -57,7 +58,7 @@ save_token_to_db = create_save_token_func(db.session, OAuth2Token)
 
 def save_token_to_db_and_redis(token,request):
     save_token_to_db(token,request)
-    auth_server.redis_client.set('token:{}'.format(token['access_token']),token['scope'])
+    auth_server.redis_client.set('token:{}'.format(token['access_token']),token['scope'],ex=token['expires_in'])
 
 def config_oauth(app):
     query_client = create_query_client_func(db.session, OAuth2Client)
@@ -72,6 +73,7 @@ def config_oauth(app):
     auth_server.register_grant(RefreshTokenGrant)
 
     auth_server.redis_client = redis.StrictRedis(decode_responses=True)
+    permission_deps.init_redis(auth_server.redis_client)
 
     # support revocation
     SQLARevocationEndpoint = create_revocation_endpoint(db.session, OAuth2Token)
