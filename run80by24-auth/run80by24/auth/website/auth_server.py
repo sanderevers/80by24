@@ -5,11 +5,12 @@ from authlib.flask.oauth2.sqla import (
     create_revocation_endpoint,
     create_bearer_token_validator,
 )
+from flask import g
 from authlib.specs.rfc6749 import grants
 from werkzeug.security import gen_salt
-from .models import db, User
+from .models import db, User, TTY
 from .oauth_models import OAuth2Client, OAuth2AuthorizationCode, OAuth2Token
-from .permission import deps as permission_deps
+from . import permission
 
 import redis
 
@@ -50,7 +51,6 @@ class RefreshTokenGrant(grants.RefreshTokenGrant):
     def authenticate_user(self, credential):
         return User.query.get(credential.user_id)
 
-
 auth_server = AuthorizationServer()
 require_oauth = ResourceProtector()
 
@@ -60,9 +60,17 @@ def save_token_to_db_and_redis(token,request):
     save_token_to_db(token,request)
     auth_server.redis_client.set('token:{}'.format(token['access_token']),token['scope'],ex=token['expires_in'])
 
-def config_oauth(app):
-    query_client = create_query_client_func(db.session, OAuth2Client)
+# NB this makes the scope field useless
+def check_requested_scopes(self, scopes):
+    requested_ttys = db.session.query(TTY).filter(TTY.id.in_(scopes)).all()
+    if len(requested_ttys) != len(scopes):
+        return False
+    return all(permission.ToGrant(g.user,permission.ToInteract(self,tty)).test() for tty in requested_ttys)
 
+query_client = create_query_client_func(db.session, OAuth2Client)
+OAuth2Client.check_requested_scopes = check_requested_scopes # monkey override
+
+def config_oauth(app):
     auth_server.init_app(
         app, query_client=query_client, save_token=save_token_to_db_and_redis)
 
@@ -73,7 +81,7 @@ def config_oauth(app):
     auth_server.register_grant(RefreshTokenGrant)
 
     auth_server.redis_client = redis.StrictRedis(decode_responses=True)
-    permission_deps.init_redis(auth_server.redis_client)
+    permission.deps.init_redis(auth_server.redis_client)
 
     # support revocation
     SQLARevocationEndpoint = create_revocation_endpoint(db.session, OAuth2Token)

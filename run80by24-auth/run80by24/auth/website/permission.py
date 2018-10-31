@@ -1,4 +1,5 @@
 from .models import MayInteract, db, User, TTY
+from .oauth_models import OAuth2Token
 
 # for dependency injection
 class Deps:
@@ -48,14 +49,14 @@ class ToInteract:
                 db.session.delete(mi)
                 db.session.commit()
                 # or defer commit to request finalisation?
-            # tokens = OAuth2Token.query \
-            #     .filter_by(client_id = self.client.client_id) \
-            #     .filter_by(user = revoking_sub) \
-            #     .all()
-            # for token in tokens:
-            #     if self.tty.id in token.scope.split():
-            #         token.revoked = True
-            #         deps.redis_client.delete('token:{}'.format(token.access_token))
+            tokens = OAuth2Token.query \
+                .filter_by(client_id = self.client.client_id) \
+                .filter_by(user = revoking_sub) \
+                .all()
+            for token in tokens:
+                if self.tty.id in token.scope.split():
+                    token.revoked = True
+                    deps.redis_client.delete('token:{}'.format(token.access_token))
         else:
             raise NotPermittedException(to_grant)
 
