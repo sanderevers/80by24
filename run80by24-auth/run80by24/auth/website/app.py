@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from .models import db
 from .auth_server import config_oauth
-from .routes import bp
+from .routes import config_routes
 from .federation import federation
 
 def create_app(instance_path):
@@ -27,4 +27,5 @@ def setup_app(app):
     db.init_app(app)
     federation.init_app(app)
     config_oauth(app)
-    app.register_blueprint(bp, url_prefix='')
+    config_routes(app)
+

@@ -1,11 +1,19 @@
 <style>pre{white-space:wrap}</style>
+
+<script>
+function ajax(method, url) {
+    fetch(url, {method}).then(resp => alert(resp.status));
+}
+</script>
+
 <div>Logged in as <strong>{{user}}</strong></div>
 
 <h2>TTYs that you own:</h2>
 
 {% for tty in ttys %}
-<pre>{{ tty.id }} (<a href="{{ url_for('.release',tty_id=tty.id) }}">release</a>)</pre>
+<pre>{{ tty.id }} (<button onclick="ajax('DELETE','{{ url_for('tty.release',tty_id=tty.id) }}')">release</button>)</pre>
 {% endfor %}
+<input id="newtty" type="text"/><button onclick="ajax('POST','{{ url_for('tty.claim',tty_id='') }}' + document.getElementById('newtty').value)">claim</button>
 
 <h2>Scopes that you have granted:</h2>
 {% for mayinteract in grants %}
