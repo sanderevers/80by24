@@ -1,7 +1,6 @@
-from flask import Blueprint, request, session, g
-from flask import render_template, redirect, jsonify, url_for, Flask
+from flask import Blueprint, request, render_template, redirect, url_for
 from werkzeug.security import gen_salt
-from ..models import db, User, TTY, MayInteract
+from ..models import db, TTY, MayInteract
 from ..oauth_models import OAuth2Client
 from .. import permission
 from .authc import current_user, authenticated_user
@@ -21,19 +20,10 @@ def home():
         grants = []
     return render_template('home.html', user=user, clients=clients, ttys=ttys, grants=grants)
 
-@bp.route('/login')
-def login():
-    with authenticated_user(redirect=True) as user:
-        return 'You are logged in as {}.'.format(user)
-
-@bp.route('/logout')
-def logout():
-    del session['id']
-    return redirect('/')
 
 @bp.route('/create_client', methods=('GET', 'POST'))
 def create_client():
-    with authenticated_user() as user:
+    with authenticated_user(redirect=True) as user:
         if request.method == 'GET':
             return render_template('create_client.html')
 
