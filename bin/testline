@@ -3,5 +3,9 @@
 CONF_FILE=${1:-~/.80by24.conf}
 eval "$(python3 pyargs.py $CONF_FILE)"
 
+if [ $token ]; then HEADERS="Authorization: Bearer $token"; else HEADERS=""; fi
+
 TERM_ID=$(python3 id_hash.py $passphrase)
-curl -si --data @sample.json $host/tty/$TERM_ID/line | grep HTTP
+echo curl -si -H \"$HEADERS\" --data @sample.json $host/tty/$TERM_ID/line \| grep HTTP
+curl -si -H "$HEADERS" --data @sample.json $host/tty/$TERM_ID/line | grep HTTP
+

@@ -81,6 +81,17 @@ class Owner:
         else:
             raise NotPermittedException(self)
 
+    def revoke_by(self,granting_sub):
+        if granting_sub=='80by24' and isinstance(self.res,TTY):
+            if self.res.owner != self.sub:
+                raise Exception
+            db.session.delete(self.res)
+            deps.redis_client.srem('claimed', self.res.id)
+            db.session.commit() # TODO or not?
+        else:
+            raise NotPermittedException(self)
+
+
 class ToGrant:
     def __init__(self, sub, perm):
         self.sub = sub

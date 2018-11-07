@@ -94,6 +94,19 @@ def claim(tty_id):
         else:
             return 'denied'
 
+@bp.route('/release/<tty_id>')
+def release(tty_id):
+    with authenticated_user() as user:
+        tty = TTY.query.get(tty_id)
+        if tty:
+            mis = MayInteract.query.filter_by(tty=tty).all()
+            for mi in mis:
+                permission.ToInteract(mi.client, mi.tty).revoke_by(user)
+            permission.Owner(user,tty).revoke_by('80by24')
+            return 'released'
+        else:
+            return 'denied'
+
 @bp.route('/authorize', methods=['GET', 'POST'])
 def authorize():
     user = current_user()
@@ -142,6 +155,7 @@ def callback():
 
     oidc_client = federation.get('solidsea')
     try:
+        # /token call to solidsea (token is saved in oidc_client state)
         oidc_client.authorize_access_token()
     except OAuthException:
         return auth_server.create_authorization_response()

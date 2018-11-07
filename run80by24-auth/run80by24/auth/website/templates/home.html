@@ -4,7 +4,7 @@
 <h2>TTYs that you own:</h2>
 
 {% for tty in ttys %}
-<pre>{{ tty.id }}</pre>
+<pre>{{ tty.id }} (<a href="{{ url_for('.release',tty_id=tty.id) }}">release</a>)</pre>
 {% endfor %}
 
 <h2>Scopes that you have granted:</h2>

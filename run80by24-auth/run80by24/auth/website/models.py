@@ -19,15 +19,15 @@ class User(db.Model):
 class TTY(db.Model):
     __tablename__ = 'tty'
     id = db.Column(db.String(20), primary_key=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     owner = db.relationship('User')
 
 class MayInteract(db.Model):
     __tablename__ = 'may_interact'
     id = db.Column(db.Integer, primary_key=True)
-    tty_id = db.Column(db.Integer, db.ForeignKey('tty.id', ondelete='CASCADE'))
+    tty_id = db.Column(db.Integer, db.ForeignKey('tty.id'))
     tty = db.relationship('TTY')
-    client_id = db.Column(db.Integer, db.ForeignKey('oauth2_client.id', ondelete='CASCADE'))
+    client_id = db.Column(db.Integer, db.ForeignKey('oauth2_client.id'))
     client = db.relationship('OAuth2Client')
 
 
