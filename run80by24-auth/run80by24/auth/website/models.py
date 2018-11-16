@@ -1,4 +1,4 @@
-from authlib.specs.oidc.grants.base import UserInfo
+from authlib.specs.oidc.claims import UserInfo
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
