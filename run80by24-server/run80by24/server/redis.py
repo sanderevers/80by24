@@ -1,4 +1,5 @@
 import aioredis
+from .conf import ServerConfig
 
 class Redis:
     @staticmethod
@@ -16,7 +17,7 @@ class Redis:
         return app['redis']
 
     async def start(self,loop):
-        pool = await aioredis.create_pool('redis://localhost',encoding='utf-8',loop=loop)
+        pool = await aioredis.create_pool(ServerConfig.redis_uri,loop=loop)
         self.r = aioredis.Redis(pool)
 
     async def stop(self):

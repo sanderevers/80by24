@@ -6,6 +6,7 @@ class ServerConfig:
     logfile = None  # 'server.log'
     debug = True
     debug_asyncio = False
+    redis_uri = 'redis://localhost:6379/0?encoding=utf-8'
 
     @staticmethod
     def read(filename):

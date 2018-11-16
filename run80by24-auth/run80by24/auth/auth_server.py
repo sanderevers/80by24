@@ -80,7 +80,7 @@ def config_oauth(app):
     auth_server.register_grant(AuthorizationCodeGrant)
     auth_server.register_grant(RefreshTokenGrant)
 
-    auth_server.redis_client = redis.StrictRedis(decode_responses=True)
+    auth_server.redis_client = redis.Redis.from_url(app.config['REDIS_URI'],decode_responses=True)
     permission.deps.init_redis(auth_server.redis_client)
 
     # support revocation

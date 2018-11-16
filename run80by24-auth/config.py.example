@@ -1,0 +1,12 @@
+# copy this file to 'instance/config.py'
+
+PORT=5002
+SERVER_NAME='localhost.local:5002'
+REDIS_URI = 'redis://localhost:6379/0?encoding=utf-8'
+
+#python -c 'import os; print(os.urandom(16))'
+SECRET_KEY = 'secret'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+SQLALCHEMY_DATABASE_URI_TEMPLATE = 'sqlite:///{}/db.sqlite'
+
+SOLIDSEA_DISCOVERY_URL = 'http://localhost:5002/.well-known/openid-configuration'

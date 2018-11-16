@@ -5,18 +5,10 @@ from .auth_server import config_oauth
 from .routes import config_routes
 from .federation import federation
 
-def create_app(instance_path):
-    app = Flask(__name__, instance_path=instance_path, instance_relative_config=True)
-
-    # load default configuration
-    app.config.from_object('run80by24.auth.website.settings')
-
-    # load environment configuration
-    if 'WEBSITE_CONF' in os.environ:
-        app.config.from_envvar('WEBSITE_CONF')
-
-    app.config.from_pyfile('run80by24-auth.cfg') # in instance dir
-
+def create_app():
+    instance_path = os.environ.get('INSTANCE_PATH')
+    app = Flask('run80by24.auth', instance_path=instance_path, instance_relative_config=True)
+    app.config.from_pyfile('config.py') # in instance dir
     setup_app(app)
     return app
 
