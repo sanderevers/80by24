@@ -1,5 +1,5 @@
-Flask
-Flask-SQLAlchemy
-Authlib
-requests
-redis
+Flask==1.0.2
+Flask-SQLAlchemy==2.3.2
+Authlib==0.10
+requests==2.20.1
+redis==3.0.1
