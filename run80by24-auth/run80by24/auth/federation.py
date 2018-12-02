@@ -21,8 +21,8 @@ class Federation:
         return None
 
     def init_app(self, app):
-        self._authlib_clients.init_app(app)
         self.register('solidsea', client_cls=OIDCClient, discovery_url=app.config['SOLIDSEA_DISCOVERY_URL'])
+        self._authlib_clients.init_app(app)
 
 
 class OIDCClient(RemoteApp):

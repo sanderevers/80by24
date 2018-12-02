@@ -1,7 +1,7 @@
 # copy this file to 'instance/config.py'
 
 PORT=5002
-SERVER_NAME='localhost.local:5002'
+#SERVER_NAME='localhost.local:5002'
 REDIS_URI = 'redis://localhost:6379/0?encoding=utf-8'
 
 #python -c 'import os; print(os.urandom(16))'
