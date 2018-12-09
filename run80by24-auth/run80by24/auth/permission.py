@@ -1,5 +1,5 @@
 from .models import MayInteract, db, User, TTY
-from .oauth_models import OAuth2Token
+from .oauth_models import OAuth2Token, OAuth2Client
 
 # for dependency injection
 class Deps:
@@ -70,6 +70,8 @@ class Owner:
     def test(self):
         if isinstance(self.sub,User) and isinstance(self.res,TTY):
             return self.res.owner is self.sub
+        if isinstance(self.sub,User) and isinstance(self.res,OAuth2Client):
+            return self.res.user is self.sub
         return False
 
     def grant_by(self,granting_sub):

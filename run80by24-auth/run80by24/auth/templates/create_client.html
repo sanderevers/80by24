@@ -3,9 +3,44 @@
   label { margin: 15px 0; }
 </style>
 
+<script>
+function post(url, data) {
+    fetch(url,
+      {method: 'POST',
+      headers: {"Content-Type": "application/json; charset=utf-8"},
+      body: JSON.stringify(data),
+      }).then(resp => alert(resp.status));
+}
+function formToJSON(id) {
+  // credits https://code.lengstorf.com/get-form-values-as-json/
+
+  const isValidElement = element => element.name && element.value;
+  const isCheckbox = element => element.type === 'checkbox';
+  const isValidValue = element => (!['checkbox', 'radio'].includes(element.type) || element.checked);
+  const isMultiSelect = element => element.options && element.multiple;
+  const getSelectValues = options => [].reduce.call(options, (values, option) => {
+    return option.selected ? values.concat(option.value) : values;
+  }, []);
+
+  json = [].reduce.call(document.getElementById(id).elements, (data, element) => {
+    if (isValidElement(element) && isValidValue(element)) {
+      if (isCheckbox(element)) {
+        data[element.name] = (data[element.name] || []).concat(element.value);
+      } else if (isMultiSelect(element)) {
+        data[element.name] = getSelectValues(element);
+      } else {
+        data[element.name] = element.value;
+      }
+    }
+    return data;
+  }, {});
+  return json;
+}
+</script>
+
 <a href="/">Home</a>
 
-<form action="" method="post">
+<form id="form">
   <label>
     <span>Client Name</span>
     <input type="text" name="client_name">
@@ -15,28 +50,15 @@
     <input type="url" name="client_uri">
   </label>
   <label>
-    <span>Allowed Scope</span>
-    <input type="text" name="scope" value="mytty">
-  </label>
-  <label>
     <span>Redirect URIs</span>
     <textarea name="redirect_uri" cols="30" rows="10"></textarea>
   </label>
   <label>
-    <span>Allowed Grant Types</span>
-    <textarea name="grant_type" cols="30" rows="10">authorization_code</textarea>
-  </label>
-  <label>
-    <span>Allowed Response Types</span>
-    <textarea name="response_type" cols="30" rows="10">code</textarea>
-  </label>
-  <label>
-    <span>Token Endpoint Auth Method</span>
-    <select name="token_endpoint_auth_method">
-      <option value="client_secret_basic">client_secret_basic</option>
-      <option value="client_secret_post">client_secret_post</option>
-      <option value="none">none</option>
+    <span>Flow</span>
+    <select name="flow">
+      <option value="code">authorization code</option>
+      <option value="implicit">implicit</option>
     </select>
   </label>
-  <button>Submit</button>
+  <button type="button" onclick="post('{{url_for('client.create')}}',formToJSON('form'))">Submit</button>
 </form>

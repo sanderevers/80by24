@@ -28,6 +28,7 @@ function ajax(method, url) {
 {{ client.client_info|tojson }}
 {{ client.client_metadata|tojson }}
 </pre>
+(<a href="#" onclick="ajax('DELETE','{{ url_for('client.delete',client_id=client.client_id) }}')">delete</a>)
 <hr>
 {% endfor %}
 
