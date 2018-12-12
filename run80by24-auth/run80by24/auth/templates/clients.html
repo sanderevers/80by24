@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div id="app" class="container">
+    <h1>clients</h1>
+    <collapsible v-for="client in clients" v-bind:key="client.client_id" v-bind:title="client.client_name">
+        {{ `${client.client_name} - ${client.redirect_uri} - ${client.flow}` }}
+    </collapsible>
+    <div v-if="newclient" class="item">
+        <div class="item-header">
+            <span class="item-toggle" v-on:click="cancel">X</span>
+            {{ newclient.client_name }}&nbsp;
+        </div>
+        <div class="item-content">
+            <input v-model="newclient.client_name" placeholder="<name>">
+            <input v-model="newclient.redirect_uri" placeholder="<redirect uri>">
+            <select v-model="newclient.flow">
+              <option value="" disabled selected>&lt;flow&gt;</option>
+              <option value="code">auth_code</option>
+              <option value="implicit">implicit</option>
+            </select>
+            <span class="done" v-on:click="done">&lt; done &gt;</span>
+        </div>
+    </div>
+    <div v-else v-on:click="stage" class="item rb"><div class="item-header">+++</div></div>
+</div>
+
+<script>
+new Vue({
+      el: '#app',
+      data: {
+        clients: <<clients|tojson>>,
+        newclient: null,
+      },
+      methods: {
+        stage: function() { this.newclient = {client_name:'', redirect_uri:'', flow:''}; },
+        done: function() {
+            post(<<url_for('client.create')>>, this.newclient)
+                .then(c => { this.clients.push(c); this.newclient=null; });
+        },
+        cancel: function() { this.newclient=null; },
+      },
+    })</script>
+
+{% endblock %}

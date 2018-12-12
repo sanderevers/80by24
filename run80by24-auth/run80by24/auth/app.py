@@ -14,6 +14,10 @@ def create_app():
 
 
 def setup_app(app):
+    jinja_options = dict(app.jinja_options)
+    jinja_options['variable_start_string'] = '<<'
+    jinja_options['variable_end_string'] = '>>'
+    app.jinja_options = jinja_options
     if app.config.get('SQLALCHEMY_DATABASE_URI_TEMPLATE'):
         app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI_TEMPLATE'].format(app.instance_path)
     db.init_app(app)

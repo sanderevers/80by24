@@ -12,13 +12,14 @@ def home():
     user = current_user()
     if user:
         clients = OAuth2Client.query.filter_by(user_id=user.id).all()
+        clients_json = [c.export() for c in clients]
         ttys = TTY.query.filter_by(owner=user).all()
         grants = MayInteract.query.filter(MayInteract.tty_id.in_([tty.id for tty in ttys])).all()
     else:
-        clients = []
+        clients_json = []
         ttys = []
         grants = []
-    return render_template('home.html', user=user, clients=clients, ttys=ttys, grants=grants)
+    return render_template('clients.html', user=user, clients=clients_json, ttys=ttys, grants=grants)
 
 
 @bp.route('/create_client', methods=('GET', 'POST'))
