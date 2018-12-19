@@ -1,12 +1,21 @@
-<p>{{grant.client.client_name}} is requesting:
-<strong>{{ grant.request.scope }}</strong>
-</p>
+{% extends "base.html" %}
+{% block content %}
 
-<form action="" method="post">
-  <label>
-    <input type="checkbox" name="confirm">
-    <span>Consent?</span>
-  </label>
-  <br>
-  <button>Submit</button>
-</form>
+<div id="app" class="container">
+  <p><< grant.client.client_name >> is requesting access to your terminal
+  <strong><< grant.request.scope >></strong>.
+  </p>
+
+  <p>Allow?</p>
+
+  <form action="" method="post">
+    <input type="hidden" name="consent" value="true">
+    <button>Yes</button>
+  </form>
+  <form action="" method="post">
+    <input type="hidden" name="consent" value="false">
+    <button>No</button>
+  </form>
+</div>
+
+{% endblock %}

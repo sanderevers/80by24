@@ -3,8 +3,13 @@
 
 <div id="app" class="container">
     <h1>clients</h1>
-    <collapsible v-for="client in clients" v-bind:key="client.client_id" v-bind:title="client.client_name">
-        {{ `${client.client_name} - ${client.redirect_uri} - ${client.flow}` }}
+    <collapsible
+            v-for="client in clients"
+            :key="client.client_id"
+            :title="client.client_name"
+            :actions="actions(client)"
+    >
+        <div v-for="(v,k) in client" v-if="k !== 'client_name'">{{ `${k}: ${v}` }}</div>
     </collapsible>
     <div v-if="newclient" class="item">
         <div class="item-header">
@@ -33,9 +38,16 @@ new Vue({
         newclient: null,
       },
       methods: {
+        actions: function(client) {
+            return [{name:'X',handler:()=>this.delete(client)}];
+        },
+        delete: function(client) {
+            del('<<url_for('client.delete',client_id='')>>'+client.client_id)
+                .then(() => this.clients.splice(this.clients.indexOf(client),1));
+        },
         stage: function() { this.newclient = {client_name:'', redirect_uri:'', flow:''}; },
         done: function() {
-            post(<<url_for('client.create')>>, this.newclient)
+            post('<<url_for('client.create')>>', this.newclient)
                 .then(c => { this.clients.push(c); this.newclient=null; });
         },
         cancel: function() { this.newclient=null; },

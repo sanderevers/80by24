@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div id="app" class="container">
+    <h1>terminals</h1>
+    <collapsible
+            v-for="tty in ttys"
+            :key="tty.id"
+            :title="tty.id"
+            :actions="actions(tty)"
+    >
+        Access granted to:
+        <ul>
+        <li v-for="grant in tty.grants">
+           {{ grant.client_name }}
+            <a href="#" v-on:click="revoke(grant)">[revoke]</a>
+        </li>
+        </ul>
+    </collapsible>
+    <h4>claim another</h4>
+    <div>
+        <input v-model="claim_id" placeholder="<id>">
+        <button v-on:click="claim">&lt; claim &gt;</button>
+    </div>
+    <a href="<< url_for('home.dev')>>">DEV CONSOLE</a>
+</div>
+
+<script>
+new Vue({
+      el: '#app',
+      data: {
+        ttys: <<ttys|tojson>>,
+        claim_id: null,
+      },
+      methods: {
+        actions: function(tty) {
+            return [{name:'X',handler:()=>this.release(tty)}];
+        },
+        release: function(tty) {
+            del('<<url_for('tty.release',tty_id='')>>'+tty.id)
+                .then(() => this.ttys.splice(this.ttys.indexOf(tty),1));
+        },
+        claim: function() {
+            post('<<url_for('tty.claim',tty_id='')>>'+this.claim_id)
+                .then(tty => { this.ttys.push(tty); this.claim_id=null; });
+        },
+        revoke: function(grant) {
+            del(`<<url_for('permission.revoke_interact')>>?client_id=${grant.client_id}&tty_id=${grant.tty_id}`)
+                .then(() => {
+                    const tty = this.ttys.find(tty => tty.id === grant.tty_id);
+                    tty.grants.splice(tty.grants.indexOf(grant),1);
+                });
+        }
+      },
+    })</script>
+
+{% endblock %}

@@ -10,11 +10,6 @@ bp = Blueprint('oauth2', __name__)
 
 @bp.route('/authorize', methods=['GET', 'POST'])
 def authorize():
-    # user = current_user()
-    # if not user:
-    #     remember_own_flow_args()
-    #     raise NotAuthenticatedException(redirect=True)
-    # g.user = user
     with authenticated_user(redirect=True) as user:
         if request.method == 'GET':
             try:
@@ -28,7 +23,7 @@ def authorize():
             return render_template('authorize.html', user=user, grant=grant)
 
         # POST
-        if request.form.get('confirm'):
+        if request.form.get('consent')=='true':
             grant_user = user
 
             # save permission

@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, jsonify
 from ..models import db, User, TTY, MayInteract
 from .. import permission
 from .authc import authenticated_user
@@ -12,9 +12,9 @@ def claim(tty_id):
         if not tty:
             tty = TTY(id=tty_id)
             permission.Owner(user,tty).grant_by('80by24')
-            return '', 201
+            return jsonify(tty.export()), 201
         if permission.Owner(user,tty).test():
-            return '', 200
+            return jsonify(tty.export()), 200
         else:
             return '', 403
 
