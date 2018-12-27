@@ -28,6 +28,7 @@ async def find_id(req, path):
 @routes.get('/tty/{ttyId}/readline')
 @augment
 async def read_line(req, path, ttyId):
+    await check_auth(req,ttyId)
     session = find_session(req.app, ttyId)
     # if client.rlc:
     #     return web.Response(status=409, text='This endpoint is already in use.')
@@ -39,6 +40,7 @@ async def read_line(req, path, ttyId):
 @routes.get('/tty/{ttyId}/readkey')
 @augment
 async def read_key(req, path, ttyId):
+    await check_auth(req,ttyId)
     session = find_session(req.app, ttyId)
     # if client.rlc:
     #     return web.Response(status=409, text='This endpoint is already in use.')
@@ -83,6 +85,7 @@ async def post_line(req, path, ttyId):
 @routes.post('/tty/{ttyId}/page')
 @augment
 async def post_page(req, path, ttyId):
+    await check_auth(req,ttyId)
     session = find_session(req.app, ttyId)
     text = await req.text()
     opts = parse_align_opts(req.query.getall('align',[]),'hv')
@@ -104,6 +107,7 @@ def parse_align_opts(queryvals,hv):
 @routes.post('/tty/{ttyId}/cls')
 @augment
 async def post_cls(req, path, ttyId):
+    await check_auth(req,ttyId)
     session = find_session(req.app, ttyId)
     await session.schedule_send(m.Cls())
     return web.Response(status=200)
