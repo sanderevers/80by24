@@ -23,6 +23,9 @@ async def find_id(req, path):
     except KeyError:
         raise AbortRequestException(status=400, text='Usage: GET {}?phrase=example%20pass%20phrase\n'.format(path))
     ttyId = id_generator.id_hash(words)
+    accept = req.headers.get('Accept')
+    if accept and accept.lower().startswith('application/json'):
+        return web.json_response({'id':ttyId})
     return web.Response(text=ttyId)
 
 @routes.get('/tty/{ttyId}/readline')
