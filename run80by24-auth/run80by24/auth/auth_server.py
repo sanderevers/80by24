@@ -62,6 +62,8 @@ def save_token_to_db_and_redis(token,request):
 
 # NB this makes the scope field useless
 def check_requested_scopes(self, scopes):
+    if scopes=={'any'}:
+        return True
     requested_ttys = db.session.query(TTY).filter(TTY.id.in_(scopes)).all()
     if len(requested_ttys) != len(scopes):
         return False
