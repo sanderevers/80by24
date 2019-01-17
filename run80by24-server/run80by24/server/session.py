@@ -120,6 +120,7 @@ class FeedSession(BaseSession):
             if subs:
                 log.debug('{}: < {}'.format(self.session_id, msg.__class__.__name__))
                 for sub in subs:
+                    # NB will raise InvalidStateError if prev future was not consumed!
                     sub.set_result(msg)
             else:
                 log.debug('{}: No subscribers for {}'.format(self.session_id,msg.__class__.__name__))
