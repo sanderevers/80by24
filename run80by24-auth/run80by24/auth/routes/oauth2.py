@@ -14,6 +14,12 @@ def authorize():
         if request.method == 'GET':
             try:
                 grant = auth_server.validate_consent_request(end_user=user)
+                if grant.request.scope=='any':
+                    ttys = TTY.query.filter_by(owner=user).all()
+                    ttys_json = [tty.export() for tty in ttys]
+                    qp = request.args.copy()
+                    del qp['scope']
+                    return render_template('authorize_any.html',ttys=ttys_json,qp=qp,client_name=grant.client.client_name)
                 tty_id = grant.request.scope # support multiple ttys?
                 tty = TTY.query.get(tty_id)
                 if permission.ToInteract(grant.client, tty).test():

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div id="app" class="container">
+  <p><< client_name >> wants to connect to a terminal.
+  </p>
+
+  <p>Enter the terminal's ID:</p>
+  <form ref="newtty" :action="urlWithScope" method="post">
+  <input v-model="passphrase" type="text" name="passphrase">
+  <input type="hidden" name="consent" value="true">
+  <button type="button" v-on:click="claim">Connect</button>
+  </form>
+
+  <form action="" method="post">
+    <input type="hidden" name="consent" value="true">
+    <button>Yes</button>
+  </form>
+  <form action="" method="post">
+    <input type="hidden" name="consent" value="false">
+    <button>No</button>
+  </form>
+</div>
+
+<script>
+new Vue({
+      el: '#app',
+      data: {
+        ttys: <<ttys|tojson>>,
+        ttyId: null,
+        passphrase: null,
+      },
+      computed: { urlWithScope: function() { return '<<url_for('oauth2.authorize',**qp)>>'+`&scope=${this.ttyId}`;} },
+      methods: {
+        actions: function(tty) {
+            return [{name:'X',handler:()=>this.release(tty)}];
+        },
+        release: function(tty) {
+            del('<<url_for('tty.release',tty_id='')>>'+tty.id)
+                .then(() => this.ttys.splice(this.ttys.indexOf(tty),1));
+        },
+/*        claim: function() {
+            get('https://80by24.net/tty/id?phrase='+encodeURI(this.passphrase))
+                .then(resp => {
+                    this.ttyId = resp.id;
+                    post('<<url_for('tty.claim',tty_id='')>>'+resp.id);
+                }).then(() => {
+                    this.$refs.newtty.submit();
+                });
+        },*/
+        claim: function() {
+            this.ttyId = this.passphrase; //TODO
+            post('<<url_for('tty.claim',tty_id='')>>'+this.ttyId)
+                .then(() => {
+                    this.$refs.newtty.submit();
+                });
+        },
+
+        revoke: function(grant) {
+            del(`<<url_for('permission.revoke_interact')>>?client_id=${grant.client_id}&tty_id=${grant.tty_id}`)
+                .then(() => {
+                    const tty = this.ttys.find(tty => tty.id === grant.tty_id);
+                    tty.grants.splice(tty.grants.indexOf(grant),1);
+                });
+        }
+      },
+    })</script>
+
+{% endblock %}

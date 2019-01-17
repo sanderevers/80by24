@@ -65,7 +65,7 @@ class BaseSession:
 
     async def send(self,text):
         socket = await self.get_socket()
-        socket.send_str(text)
+        await socket.send_str(text)
         log.debug('{}: > {}'.format(self.session_id, text[:20]+'...'))
 
     async def get_socket(self):
@@ -79,7 +79,7 @@ class BaseSession:
         if self.open:
             self.open = False
             log.debug('{}: CLOSING'.format(self.session_id))
-            if self.socket:
+            if self.socket is not None:
                 await self.socket.close()
                 self.unset_socket()
             await self.stop_tasks()

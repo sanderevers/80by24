@@ -35,7 +35,7 @@ setup(
     packages=['run80by24.'+pkg for pkg in find_packages('run80by24')],
     install_requires=['Flask==1.0.2','Flask-SQLAlchemy==2.3.2','Authlib==0.10','requests==2.20.1','redis==3.0.1'],
     package_data={
-         '': ['templates/*'],
+         '': ['templates/*','static/**/*'],
     },
 
     entry_points={
