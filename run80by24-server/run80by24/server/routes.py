@@ -61,10 +61,10 @@ async def feed_endpoint(req, path, ttyId):
     sessions = State.of(req.app).sessions
     if ttyId in sessions:
         session = sessions[ttyId]
-        if session.socket:
+        if session.socket is not None:
             return web.Response(status=409, text='This endpoint is already in use.')
     else:
-        session = FeedSession(ttyId)
+        session = FeedSession(ttyId, req.app)
         sessions[ttyId] = session
 
     socket = web.WebSocketResponse(heartbeat=15)

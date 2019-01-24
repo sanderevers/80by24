@@ -6,6 +6,7 @@ from collections import defaultdict
 from .aqueue import FiniteQueue,Subscriber
 from ..common import messages as m
 from .banner import banner
+from .redis import Redis
 
 class SocketOccupiedException(Exception):
     pass
@@ -32,7 +33,7 @@ class BaseSession:
         self.unset_socket()
 
     def set_socket(self,socket):
-        if self.socket:
+        if self.socket is not None:
             raise SocketOccupiedException()
         self.socket = socket
         self.got_socket.set()
@@ -86,8 +87,9 @@ class BaseSession:
             log.info('{}: CLOSED'.format(self.session_id))
 
 class FeedSession(BaseSession):
-    def __init__(self,session_id):
+    def __init__(self,session_id,app):
         super().__init__(session_id)
+        self.app=app
         self.info = SessionInfo()
         self.sendq = FiniteQueue()
         self.recvq = FiniteQueue()
@@ -114,6 +116,7 @@ class FeedSession(BaseSession):
         await self.sendq.put(str(msg))
 
     async def run_protocol(self):
+        await Redis.of(self.app).publish(m.TTY_Opened(ttyId=self.session_id))
         await self.schedule_banner()
         async for msg in self.recvq:
             subs = self.subscriberlists[msg.__class__]
@@ -130,6 +133,8 @@ class FeedSession(BaseSession):
             await self.schedule_send(m.Line(line))
 
     async def close(self):
+        if self.open:
+            await Redis.of(self.app).publish(m.TTY_Closed(ttyId=self.session_id))
         await super().close()
 
     async def subscribe_once(self,mclass):

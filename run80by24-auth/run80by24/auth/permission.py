@@ -30,16 +30,16 @@ class ToInteract:
     def grant_by(self,granting_sub):
         to_grant = ToGrant(granting_sub,self)
         if to_grant.test():
-            # test for existing?
-            mi = MayInteract(client = self.client, tty = self.tty)
-            db.session.add(mi)
-            db.session.commit()
-            # or defer commit to request finalisation?
-            #https://chase-seibert.github.io/blog/2016/03/31/flask-sqlalchemy-sessionless.html
-            event_key = current_app.config['PSFW_KEY_PREFIX']+self.tty.id
-            deps.redis_client.delete(event_key)
-            if self.client.event_url:
-                deps.redis_client.sadd(event_key, self.client.event_uri)
+            if not self.test():
+                mi = MayInteract(client = self.client, tty = self.tty)
+                db.session.add(mi)
+                db.session.commit()
+                # or defer commit to request finalisation?
+                #https://chase-seibert.github.io/blog/2016/03/31/flask-sqlalchemy-sessionless.html
+                event_key = current_app.config['PSFW_KEY_PREFIX']+self.tty.id
+                deps.redis_client.delete(event_key)
+                if self.client.event_url:
+                    deps.redis_client.sadd(event_key, self.client.event_uri)
         else:
             raise NotPermittedException(to_grant)
 

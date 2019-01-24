@@ -1,5 +1,7 @@
 import aioredis
+import json
 from .conf import ServerConfig
+from ..common import messages as m
 
 class Redis:
     @staticmethod
@@ -33,5 +35,8 @@ class Redis:
 
     async def claimed(self, ttyId):
         return (await self.r.sismember('claimed',ttyId))
+
+    async def publish(self, ttyId, msg):
+        await self.r.publish(self, ServerConfig.psfw_channel_prefix+ttyId, str(msg))
 
 

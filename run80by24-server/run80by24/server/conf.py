@@ -7,6 +7,7 @@ class ServerConfig:
     debug = True
     debug_asyncio = False
     redis_uri = 'redis://localhost:6379/0?encoding=utf-8'
+    psfw_channel_prefix = 'psfw:'
 
     @staticmethod
     def read(filename):

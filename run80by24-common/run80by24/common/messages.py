@@ -55,5 +55,15 @@ class KeyRead(Message):
     def __init__(self,key):
         self.key = key
 
+# Server -> App
+
+class TTY_Opened(Message):
+    def __init__(self,ttyId):
+        self.ttyId = ttyId
+
+class TTY_Closed(Message):
+    def __init__(self,ttyId):
+        self.ttyId = ttyId
+
 
 _commands = {k:v for k,v in locals().items() if not k.startswith('_')}
