@@ -14,6 +14,7 @@ class OAuth2Client(db.Model, OAuth2ClientMixin):
     user_id = db.Column(
         db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
     user = db.relationship('User')
+    event_uri = db.Column(db.Text)
 
     @staticmethod
     def emport(req_client):
@@ -33,7 +34,7 @@ class OAuth2Client(db.Model, OAuth2ClientMixin):
         return client
 
     def export(self):
-        json_keys = ['client_id', 'client_name', 'client_secret', 'redirect_uri']
+        json_keys = ['client_id', 'client_name', 'client_secret', 'redirect_uri', 'event_uri']
         ret = {k: getattr(self, k) for k in json_keys}
         ret['flow'] = 'code' if self.grant_type == 'authorization_code' else 'implicit'
         return ret

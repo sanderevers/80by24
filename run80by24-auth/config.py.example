@@ -3,6 +3,8 @@
 PORT=5002
 #SERVER_NAME='localhost.local:5002'
 REDIS_URI = 'redis://localhost:6379/0?encoding=utf-8'
+PSFW_CHANNEL_PREFIX = 'psfw:'
+PSFW_KEY_PREFIX = 'psfw:'
 
 #python -c 'import os; print(os.urandom(16))'
 SECRET_KEY = 'secret'

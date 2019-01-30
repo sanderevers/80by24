@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from ..models import db, User
+from ..models import db, User, MayInteract
 from ..oauth_models import OAuth2Client
 from .. import permission
 from .authc import authenticated_user
@@ -21,6 +21,8 @@ def delete(client_id):
     with authenticated_user() as user:
         client = OAuth2Client.query.filter_by(client_id=client_id).first()
         if client and permission.Owner(user,client).test():
+            for mi in MayInteract.query.filter_by(client_id=client_id):
+                permission.ToInteract(mi.client,mi.tty).revoke_by(user)
             db.session.delete(client)
             db.session.commit()
             return '', 200
