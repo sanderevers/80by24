@@ -37,6 +37,6 @@ class Redis:
         return (await self.r.sismember('claimed',ttyId))
 
     async def publish(self, ttyId, msg):
-        await self.r.publish(self, ServerConfig.psfw_channel_prefix+ttyId, str(msg))
+        await self.r.publish(ServerConfig.psfw_channel_prefix+ttyId, str(msg))
 
 

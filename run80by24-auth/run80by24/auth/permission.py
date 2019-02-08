@@ -1,6 +1,7 @@
 from .models import MayInteract, db, User, TTY
 from .oauth_models import OAuth2Token, OAuth2Client
 from flask import current_app
+from authlib.common.security import generate_token
 
 # for dependency injection
 class Deps:
@@ -38,8 +39,9 @@ class ToInteract:
                 #https://chase-seibert.github.io/blog/2016/03/31/flask-sqlalchemy-sessionless.html
                 event_key = current_app.config['PSFW_KEY_PREFIX']+self.tty.id
                 deps.redis_client.delete(event_key)
-                if self.client.event_url:
+                if self.client.event_uri:
                     deps.redis_client.sadd(event_key, self.client.event_uri)
+
         else:
             raise NotPermittedException(to_grant)
 

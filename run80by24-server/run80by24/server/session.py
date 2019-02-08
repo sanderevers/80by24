@@ -116,7 +116,7 @@ class FeedSession(BaseSession):
         await self.sendq.put(str(msg))
 
     async def run_protocol(self):
-        await Redis.of(self.app).publish(m.TTY_Opened(ttyId=self.session_id))
+        await Redis.of(self.app).publish(self.session_id, m.TTY_Opened(ttyId=self.session_id))
         await self.schedule_banner()
         async for msg in self.recvq:
             subs = self.subscriberlists[msg.__class__]
@@ -134,7 +134,7 @@ class FeedSession(BaseSession):
 
     async def close(self):
         if self.open:
-            await Redis.of(self.app).publish(m.TTY_Closed(ttyId=self.session_id))
+            await Redis.of(self.app).publish(self.session_id, m.TTY_Closed(ttyId=self.session_id))
         await super().close()
 
     async def subscribe_once(self,mclass):
